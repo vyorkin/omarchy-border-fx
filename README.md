@@ -9,7 +9,7 @@ light. One configuration drives both surfaces: change the look once in
 theme ships an opinionated preset, so the ring takes its colors, light
 direction, and motion from the theme until you set keys of your own.
 
-> 0.2.0. Look keys and defaults may still change. After a Hyprland upgrade,
+> 0.2.1. Look keys and defaults may still change. After a Hyprland upgrade,
 > re-enable so the window ring rebuilds against the new compositor. If you
 > remove the plugin while the shell is down, leftover files stay; see
 > [Remove](#remove).

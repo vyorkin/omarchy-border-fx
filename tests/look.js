@@ -14,6 +14,7 @@ const fs = require("fs")
 const os = require("os")
 const path = require("path")
 const vm = require("vm")
+const { spawnSync } = require("child_process")
 const cli = require("./cli")
 
 const root = path.resolve(__dirname, "..")
@@ -322,6 +323,29 @@ function checkLookApply() {
   check(lua.indexOf("__wmfeht_border_fx_start") !== -1, "start guard uses wmfeht/border-fx name")
   check(lua.indexOf("__qs_border_fx_start") === -1, "start guard does not use leftover qs_ token")
   check(lua.indexOf("shinyLoaded") !== -1, "gated on loaded plugins")
+  check(/rawget\(hl, "get_loaded_plugins"\)/.test(lua), "lua guards plugin probe with rawget")
+
+  // Regression: Omarchy Quattro's keybindings menu scans hyprland.lua in a
+  // plain `lua` interpreter whose sandbox answers every hl.* access with a
+  // self-returning table. ipairs over that stub never sees nil, so an
+  // unguarded hl.get_loaded_plugins() loop hangs the scanner forever — one
+  // spinning `lua` per SUPER+K press. The generated lua must terminate
+  // under that sandbox. Skipped when no `lua` is installed.
+  if (spawnSync("lua", ["-v"], { encoding: "utf8" }).status === 0) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "border-fx-scan-"))
+    const gen = path.join(dir, "border-fx.lua")
+    fs.writeFileSync(gen, lua)
+    const scan = path.join(dir, "scan.lua")
+    fs.writeFileSync(scan, [
+      "local stub = {}",
+      "setmetatable(stub, { __index = function() return stub end, __call = function() return stub end })",
+      "hl = setmetatable({}, { __index = function() return stub end })",
+      "dofile(...)",
+    ].join("\n"))
+    const run = spawnSync("lua", [scan, gen], { encoding: "utf8", timeout: 10000 })
+    check(run.status === 0, "generated lua terminates under the keybindings-menu scanner sandbox (status " + run.status + ")")
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
   check(lua.indexOf("/tmp/omarchy-border-fx-test.so") !== -1, "session so path")
 
   const off = cli.run(["apply", "--stdout", "--disabled", "--look-json", "{}"], { env: lookApplyEnv() })

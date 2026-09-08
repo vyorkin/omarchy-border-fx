@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 uses [Semantic Versioning](https://semver.org).
 
+## [0.2.1] - 2026-09-07
+
+### Fixed
+
+- Generated `border-fx.lua` no longer hangs Omarchy Quattro's keybindings
+  menu scanner (`SUPER+K`). `shinyLoaded()` now checks
+  `rawget(hl, "get_loaded_plugins")` before iterating, so a plain-lua
+  sandbox that answers every `hl.*` access with a self-returning table
+  terminates instead of spinning forever.
+
 ## [0.2.0] - 2026-09-02
 
 ### Changed
@@ -66,5 +76,6 @@ Initial release.
   shaders ship in the repo, so no build tools are needed for the chrome
   effect.
 
+[0.2.1]: https://github.com/wmfeht/omarchy-border-fx/releases/tag/0.2.1
 [0.2.0]: https://github.com/wmfeht/omarchy-border-fx/releases/tag/0.2.0
 [0.1.0]: https://github.com/wmfeht/omarchy-border-fx/releases/tag/0.1.0
