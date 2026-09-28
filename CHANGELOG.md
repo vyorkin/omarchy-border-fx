@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 uses [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Changed
+
+- The Hyprland plugin no longer raises a "window borders are on" toast every
+  time it loads. The state is visible in the borders themselves, and the
+  toast taught nothing after the first login. The ABI-mismatch notification,
+  which reports a real failure, is unchanged.
+
 ## [0.2.1] - 2026-09-07
 
 ### Fixed
