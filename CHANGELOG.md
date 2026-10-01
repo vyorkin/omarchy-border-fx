@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 uses [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- Themes without a shipped preset now follow their own palette. The CLI
+  reads the theme's `colors.toml` and derives a four-stop ramp from its
+  brightest ink, through its accent, to its background, with the wrap
+  stroke in its selection. Custom and user-made themes read in their own
+  colors instead of the shared teal; motion, size, and `effect` still
+  come from the shared defaults or the user's entry.
+
 ## [0.2.1] - 2026-09-07
 
 ### Fixed

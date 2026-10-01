@@ -1,6 +1,7 @@
 //! Read the user's current Omarchy theme and turn it into a look
 //! [`crate::look::Base`] layer: opinionated presets for stock themes keyed
-//! by [`Theme::name`], shared defaults for everything else.
+//! by [`Theme::name`], a palette derived from `colors.toml` for any other
+//! theme, and shared defaults when no `colors.toml` can be read.
 
 mod presets;
 
@@ -9,6 +10,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
+use serde_json::{Map, Value, json};
 
 use crate::look::Base;
 use crate::paths::Paths;
@@ -81,12 +83,51 @@ pub fn current(p: &Paths) -> Result<Theme, String> {
 }
 
 /// Look base for the current Omarchy theme: a stock preset when we ship one,
-/// otherwise the shared defaults. A missing `theme.name` is shared, not an error.
+/// otherwise a color-only ramp derived from the theme's `colors.toml`, else the
+/// shared defaults. A missing `theme.name` is shared, not an error.
 pub fn look_base(p: &Paths) -> Base {
-    match current_name(p).as_deref().and_then(presets::for_name) {
+    let Some(name) = current_name(p) else { return Base::shared() };
+    if let Some(map) = presets::for_name(&name) {
+        return Base::with(map);
+    }
+    match load(p, &name).ok().and_then(|theme| derive_look(&theme)) {
         Some(map) => Base::with(map),
         None => Base::shared(),
     }
+}
+
+/// Color-only look for a theme we ship no preset for, built from that theme's
+/// own `colors.toml`: the ramp leads with its brightest ink, passes through its
+/// accent, and fades transparent on its background; the wrap stroke is its
+/// selection. Only color keys are returned, so motion, size, and `effect` still
+/// come from the shared defaults or the user's entry. `None` when the theme has
+/// too little palette to build a ramp.
+fn derive_look(theme: &Theme) -> Option<Map<String, Value>> {
+    let get = |keys: &[&str]| -> Option<&str> {
+        keys.iter().find_map(|k| theme.colors.get(*k).map(String::as_str))
+    };
+    let head = get(&["bright_fg", "light_fg", "fg", "foreground", "color15", "color7", "accent"])?;
+    let accent = get(&["accent", "color4", "color12", "bright_blue", "color6"]).unwrap_or(head);
+    let deep = get(&["muted", "dark_fg", "color8", "selection", "color6"]).unwrap_or(accent);
+    let bg = get(&["bg", "background", "darker_bg", "dark_bg", "color0"])?;
+    let wrap = get(&["selection", "selection_background", "muted", "color8", "foreground"]).unwrap_or(deep);
+
+    let tint = |hex: &str, a: f64| -> Value {
+        let c = crate::look::color::parse_str(hex).unwrap_or(crate::look::color::Rgba { r: 0.0, g: 0.0, b: 0.0, a: 0.0 });
+        let obj = json!({ "r": c.r, "g": c.g, "b": c.b, "a": a });
+        Value::String(crate::look::color::to_hypr(&obj))
+    };
+
+    let mut m = Map::new();
+    m.insert(
+        "gradient".into(),
+        Value::Array(vec![tint(head, 1.0), tint(accent, 0.92), tint(deep, 0.5), tint(bg, 0.0)]),
+    );
+    m.insert("gradientPositions".into(), json!("0 30 65 100"));
+    m.insert("colA".into(), tint(head, 1.0));
+    m.insert("colB".into(), tint(bg, 0.0));
+    m.insert("baseColor".into(), tint(wrap, 0.87));
+    Some(m)
 }
 
 /// Directory name of the current theme when a stock preset exists.
@@ -265,6 +306,38 @@ bright_blue = "#7da6ff"
         assert_eq!(look["shimmer"], false);
         assert_eq!(look["pulse"], true);
         assert_eq!(look["pulseHz"], json!(0.15));
+    }
+
+    #[test]
+    fn look_base_derives_from_custom_theme_colors() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = paths_with_theme(dir.path(), "blackturq");
+        let theme_dir = p.home.join(".config/omarchy/themes/blackturq");
+        fs::create_dir_all(&theme_dir).unwrap();
+        fs::write(
+            theme_dir.join("colors.toml"),
+            r##"
+mode = "dark"
+accent = "#ADF0E9"
+background = "#0a0a0a"
+foreground = "#c8dcdc"
+selection_background = "#c8dcdc"
+color8 = "#322F3B"
+color15 = "#d2d9db"
+"##,
+        )
+        .unwrap();
+
+        assert_eq!(preset_name(&p), None);
+        let look = crate::look::resolve(&json!({}), &look_base(&p)).0.to_map();
+        let grad = look["gradient"].as_array().unwrap();
+        assert_eq!(grad.len(), 4);
+        assert_eq!(grad[0], "rgba(c8dcdcff)", "head is the brightest ink");
+        assert_eq!(grad[1], "rgba(adf0e9eb)", "then the accent");
+        assert_eq!(look["gradientPositions"], "0 30 65 100");
+        assert_eq!(look["baseColor"], "rgba(c8dcdcde)", "wrap is the selection");
+        assert_eq!(look["pinDeg"], 120, "motion stays shared");
+        assert_eq!(look["effect"], "shiny", "effect stays shared");
     }
 
     #[test]

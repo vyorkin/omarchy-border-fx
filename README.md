@@ -216,8 +216,11 @@ stops are used; extra colors are dropped.
 
 ## Theme presets and defaults
 
-Missing or `null` keys give you the current Omarchy theme's stock look
-(every stock theme ships one), otherwise the shared look: light pinned at
+Missing or `null` keys give you the current Omarchy theme's look. Stock
+themes ship a hand-tuned preset; any other theme gets a ramp derived from
+its own `colors.toml` (the brightest ink through its accent, fading to its
+background, with a wrap stroke in its selection). Only a theme with no
+readable `colors.toml` falls back to the shared look: light pinned at
 120°, shimmer on, a 2-stop light glint, and a wrapping stroke. Keys you
 set on the `plugins[]` entry still win, and they stay put when you change
 themes — omit a key to follow the theme. Windows and chrome share the
@@ -234,6 +237,12 @@ Set `effect` (or any other key) on your entry to opt out of a preset's
 choice while keeping the rest.
 An empty `gradient` array is a real override: it falls back to the
 two-stop `colA`/`colB` rather than the default ramp.
+
+A theme with no shipped preset still follows its own palette: the plugin
+reads `colors.toml` and builds a four-stop ramp from the theme's brightest
+ink, through its accent, to its background (transparent), with the wrap
+stroke in its selection. Custom and user-made themes therefore read in
+their own colors instead of the shared teal.
 
 All keys at their shared defaults — the floor under a theme preset, and
 what you get on a theme we have not tuned yet:
@@ -314,9 +323,10 @@ defaults (not the shiny defaults).
    ignored.
 4. If the entry has a nested object named after the effect, its look keys
    overlay the top level. Nested wins.
-5. Any still-missing key comes from the current Omarchy theme's stock
-   preset if we ship one, otherwise the shared default above. Every stock
-   Omarchy theme ships a preset; user-made themes get the shared default.
+5. Any still-missing key comes from the current Omarchy theme: its stock
+   preset if we ship one, otherwise a ramp derived from its `colors.toml`.
+   Only a theme with no readable `colors.toml` gets the shared default
+   above.
 6. `gradient` and `gradientCw` are normalized to arrays.
 
 `id` and `enabled` are not look keys. `omarchy plugin disable` is the only
